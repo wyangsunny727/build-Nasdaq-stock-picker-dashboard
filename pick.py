@@ -13,19 +13,32 @@ st.caption("Scraping the complete Nasdaq-100 index and evaluating performance an
 @st.cache_data(ttl=86400) # Cache the ticker list for 24 hours
 def get_nasdaq_100_tickers():
     try:
-        # Wikipedia maintains a highly accurate, live-updated list of Nasdaq-100 components
+        # Wikipedia live link
         url = "https://en.wikipedia.org/wiki/Nasdaq-100"
-        table = pd.read_html(url)
-        # The components table is usually the first or second table on the page
-        df_tickers = table[4] if len(table) > 4 else table[3] 
-        tickers = df_tickers['Ticker'].tolist()
-        # Clean up tickers (e.g., BRK.B to BRK-B for Yahoo Finance compatibility)
-        tickers = [t.replace('.', '-') for t in tickers]
-        return tickers
+        tables = pd.read_html(url)
+        
+        # Robust fix: Scan all downloaded tables to find the one with the 'Ticker' column
+        for table in tables:
+            if 'Ticker' in table.columns:
+                tickers = table['Ticker'].tolist()
+                # Clean up format for yfinance (e.g., change dots to dashes)
+                return [str(t).replace('.', '-') for t in tickers]
+                
+        # If no table matched, manually raise an error to trigger the robust fallback
+        raise ValueError("Ticker column not found in Wikipedia tables.")
+        
     except Exception as e:
-        # Reliable fallback list if Wikipedia structure changes
-        st.warning("Could not parse live Wikipedia list. Using fallback core tickers.")
-        return ["AAPL", "MSFT", "AMZN", "NVDA", "GOOGL", "META", "TSLA", "AVGO", "COST", "NFLX", "AMD", "QCOM", "INTC"]
+        st.sidebar.warning("Wikipedia layout changed. Deploying Top 50 Nasdaq Fallback Pool.")
+        
+        # Comprehensive fallback pool of the 50 largest Nasdaq heavyweights
+        fallback_top_50 = [
+            "AAPL", "MSFT", "AMZN", "NVDA", "GOOGL", "META", "TSLA", "AVGO", "COST", "NFLX", 
+            "AMD", "QCOM", "INTC", "PEP", "TMUS", "CMCSA", "AMGN", "ISRG", "HON", "TXN", 
+            "BKNG", "VRTX", "ADI", "REGN", "PANW", "MDLZ", "LRCX", "MU", "MELI", "SNPS",
+            "KLAC", "CDNS", "ASML", "CSCO", "ORLY", "MAR", "CTAS", "NXPI", "ADBE", "INTU",
+            "PDD", "MNST", "ROST", "WDAY", "CPRT", "FAST", "ADADP", "PAYX", "MCHP", "IDXX"
+        ]
+        return fallback_top_50
 
 # 2. Batch download data efficiently
 @st.cache_data(ttl=43200) # Cache market calculations for 12 hours
